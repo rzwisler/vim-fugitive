@@ -721,6 +721,63 @@ endfunction
 call s:command("-bar -bang -nargs=? -complete=customlist,s:DirComplete Gcd  :cd<bang>  `=s:repo().bare() ? s:repo().dir(<q-args>) : s:repo().tree(<q-args>)`")
 call s:command("-bar -bang -nargs=? -complete=customlist,s:DirComplete Glcd :lcd<bang> `=s:repo().bare() ? s:repo().dir(<q-args>) : s:repo().tree(<q-args>)`")
 
+" Section: Gdelta
+
+let g:Gdelta_rev = "HEAD~1"
+function! s:Delta(rev)
+    let qflist = []
+    if empty(a:rev)
+        let g:Gdelta_rev = "HEAD~1"
+    else
+        let g:Gdelta_rev = a:rev
+    endif
+    let files = split(system(g:fugitive_git_executable." diff --stat ".g:Gdelta_rev),"\n")
+
+    " trim the summary line from the diff stat
+    let files = files[0:-2]
+
+    let maxlen = 0
+    for file in files
+        let [name, stat] = split(file,'|')
+        let name=s:gsub(name," ","")
+        let len = strlen(name)
+        if len > maxlen
+            let maxlen = len
+        endif
+    endfor
+
+    for file in files
+       let [name, stat] = split(file,'|')
+       let name=s:gsub(name," ","")
+       let num_spaces = maxlen - strlen(name) + 1
+       let spacing = repeat(" ", num_spaces)
+       let entry = {'filename': name, 'text': "|".spacing.g:Gdelta_rev.stat}
+       call add(qflist, entry)
+    endfor
+    call setqflist(qflist)
+    copen
+endfunction
+call s:command("-nargs=? -bar Gdelta :execute s:Delta(<q-args>)")
+
+function! s:StageDelta(diff)
+    let lineno = line('.')
+    let line = getline(lineno)
+    if line =~# '||'
+        let [filename,other]  = split(line,'||')
+        execute 'Gedit '.s:fnameescape('/'.filename)
+        if !empty(a:diff)
+            execute a:diff." ".g:Gdelta_rev
+        endif
+    endif
+    execute "cc ".lineno
+endfunction
+
+au filetype qf nnoremap <buffer> <silent> D :<C-U>call <SID>StageDelta('Gdiff')<CR>
+au filetype qf nnoremap <buffer> <silent> <CR> :<C-U>call <SID>StageDelta('')<CR>
+au filetype qf nnoremap <buffer> <silent> ds :<C-U>call <SID>StageDelta('Gsdiff')<CR>
+au filetype qf nnoremap <buffer> <silent> r :<C-U>call <SID>Delta(g:Gdelta_rev)<CR>
+au filetype qf nnoremap <buffer> <silent> R :<C-U>call <SID>Delta(g:Gdelta_rev)<CR>
+
 " Section: Gstatus
 
 call s:command("-bar Gstatus :execute s:Status()")
@@ -1327,7 +1384,7 @@ endfunction
 function! s:Edit(cmd,bang,...) abort
   let buffer = s:buffer()
   if a:cmd !~# 'read'
-    if &previewwindow && getbufvar('','fugitive_type') ==# 'index'
+    if (&previewwindow && getbufvar('','fugitive_type') ==# 'index')  || (&filetype ==# "qf")
       wincmd p
       if &diff
         let mywinnr = winnr()
