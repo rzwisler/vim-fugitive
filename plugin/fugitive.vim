@@ -772,11 +772,25 @@ function! s:StageDelta(diff)
     execute "cc ".lineno
 endfunction
 
+function s:NextDelta()
+    copen
+    normal j
+    call s:StageDelta('Gdiff')
+endfunction
+
+function s:PrevDelta()
+    copen
+    normal k
+    call s:StageDelta('Gdiff')
+endfunction
+
 au filetype qf nnoremap <buffer> <silent> D :<C-U>call <SID>StageDelta('Gdiff')<CR>
 au filetype qf nnoremap <buffer> <silent> <CR> :<C-U>call <SID>StageDelta('')<CR>
 au filetype qf nnoremap <buffer> <silent> ds :<C-U>call <SID>StageDelta('Gsdiff')<CR>
 au filetype qf nnoremap <buffer> <silent> r :<C-U>call <SID>Delta(g:Gdelta_rev)<CR>
 au filetype qf nnoremap <buffer> <silent> R :<C-U>call <SID>Delta(g:Gdelta_rev)<CR>
+nmap ]d :call <SID>NextDelta()<CR>
+nmap [d :call <SID>PrevDelta()<CR>
 
 " Section: Gstatus
 
